@@ -4,7 +4,7 @@ sniffer_ai.py
 Lightweight packet sniffer + AI classifier.
 
 Usage:
-  sudo python3 sniffer_ai.py --iface eth0 --ai-url https://your-api.example/classify --ai-key AIzaSyASgk1OlPu8ASl1Bd0uguhMPa4o3sHp-_I
+  sudo python3 sniffer_ai.py --iface eth0 --ai-url https://your-api.example/classify 
 Or test on loopback:
   sudo python3 sniffer_ai.py --iface lo --no-ai
 
