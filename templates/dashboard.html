@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Sniffer Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #e0e0e0;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button, select, input {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #374151;
+            background-color: #1f2937;
+            color: #e0e0e0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #00d4ff;
+            color: #0a0e27;
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #0a0e27;
+            border: none;
+            font-weight: 600;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background-color: #1f2937;
+            border-radius: 8px;
+            font-size: 14px;
+            border: 1px solid #374151;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.paused {
+            background-color: #ef4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .table-wrapper {
+            background-color: #111827;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #374151;
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #1f2937;
+            color: #00d4ff;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #374151;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #374151;
+        }
+
+        tbody tr {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background-color: #111827;
+        }
+
+        tbody tr:hover {
+            background-color: #1f2937;
+            transform: scale(1.01);
+            box-shadow: inset 0 0 10px rgba(0, 212, 255, 0.1);
+        }
+
+        .time-cell {
+            color: #9ca3af;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .protocol-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .protocol-tcp { background-color: #374151; color: #60a5fa; }
+        .protocol-udp { background-color: #374151; color: #34d399; }
+        .protocol-icmp { background-color: #374151; color: #fbbf24; }
+        .protocol-arp { background-color: #374151; color: #f472b6; }
+
+        .direction-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .direction-in { color: #10b981; }
+        .direction-out { color: #3b82f6; }
+        .direction-other { color: #f97316; }
+
+        .arrow-icon {
+            font-size: 10px;
+        }
+
+        .payload-preview {
+            color: #a3e635;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #6b7280;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-content {
+            background-color: #111827;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid #374151;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid #374151;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #00d4ff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background-color: #374151;
+            color: #00d4ff;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #374151;
+            align-items: flex-start;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #9ca3af;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 120px;
+        }
+
+        .detail-value {
+            color: #e0e0e0;
+            font-size: 14px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            text-align: right;
+            flex: 1;
+            margin-left: 16px;
+        }
+
+        .detail-value.highlight {
+            color: #a3e635;
+        }
+
+        .section-title {
+            color: #00d4ff;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #374151;
+        }
+
+        .section-title:first-of-type {
+            margin-top: 0;
+            border-top: none;
+            padding-top: 0;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            button, select, input {
+                width: 100%;
+            }
+
+            .status {
+                width: 100%;
+            }
+
+            .modal-content {
+                width: 95%;
+                max-height: 90vh;
+            }
+
+            .detail-row {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .detail-label {
+                min-width: auto;
+            }
+
+            .detail-value {
+                text-align: left;
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                Packet Sniffer Dashboard
+            </h1>
+            <p class="subtitle">Monitor network packets in real-time</p>
+        </header>
+
+        <div class="controls">
+            <button class="primary-btn" id="toggleBtn">⏸ Pause Capture</button>
+            <div class="status">
+                <div class="status-dot"></div>
+                <span id="statusText">Capturing</span>
+            </div>
+            <select id="protocolFilter">
+                <option value="all">All Protocols</option>
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="icmp">ICMP</option>
+                <option value="arp">ARP</option>
+            </select>
+            <input type="text" id="searchBox" placeholder="Search IP or protocol...">
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Source IP</th>
+                        <th>Destination IP</th>
+                        <th>Protocol</th>
+                        <th>Size</th>
+                        <th>Direction</th>
+                        <th>Preview</th>
+                    </tr>
+                </thead>
+                <tbody id="packet-table-body">
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-icon">🔍</div>
+                            <div>Waiting for packets...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal for packet details -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    📋 Packet Details
+                </div>
+                <button class="close-btn" id="closeModal">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const tableBody = document.getElementById("packet-table-body");
+        const toggleBtn = document.getElementById("toggleBtn");
+        const statusEl = document.getElementById("statusText");
+        const statusDot = document.querySelector(".status-dot");
+        const protocolFilter = document.getElementById("protocolFilter");
+        const searchBox = document.getElementById("searchBox");
+        const detailModal = document.getElementById("detailModal");
+        const closeModalBtn = document.getElementById("closeModal");
+        const modalBody = document.getElementById("modalBody");
+
+        let capturing = true;
+        let packets = [];
+
+        socket.on("connect", () => console.log("Connected to server"));
+
+        socket.on("new_packet", (pkt) => {
+            if (!tableBody.querySelector(".empty-state")) {
+                tableBody.innerHTML = "";
+            }
+
+            packets.unshift(pkt);
+            if (packets.length > 300) packets.pop();
+            renderPackets();
+        });
+
+        function getProtocolBadgeClass(proto) {
+            const p = proto.toUpperCase();
+            if (p.includes("TCP")) return "protocol-tcp";
+            if (p.includes("UDP")) return "protocol-udp";
+            if (p.includes("ICMP")) return "protocol-icmp";
+            if (p.includes("ARP")) return "protocol-arp";
+            return "protocol-tcp";
+        }
+
+        function getDirectionDisplay(direction) {
+            const d = direction.toLowerCase();
+            if (d.includes("in")) return { class: "direction-in", text: "↓ Incoming" };
+            if (d.includes("out")) return { class: "direction-out", text: "↑ Outgoing" };
+            return { class: "direction-other", text: "↔ Other" };
+        }
+
+        function renderPackets() {
+            const filter = protocolFilter.value.toLowerCase();
+            const search = searchBox.value.toLowerCase();
+
+            const filtered = packets.filter(pkt => {
+                const matchesFilter = filter === "all" || pkt.proto.toLowerCase().includes(filter);
+                const matchesSearch = !search || 
+                    pkt.src_ip?.toLowerCase().includes(search) ||
+                    pkt.dst_ip?.toLowerCase().includes(search) ||
+                    pkt.proto.toLowerCase().includes(search);
+                return matchesFilter && matchesSearch;
+            });
+
+            tableBody.innerHTML = filtered.map(pkt => {
+                const ts = new Date(pkt.ts * 1000).toLocaleTimeString();
+                const directionInfo = getDirectionDisplay(pkt.direction);
+                const payload = (pkt.payload_preview || "").substring(0, 50);
+
+                return `
+                    <tr onclick="openPacketDetails(${packets.indexOf(pkt)})">
+                        <td class="time-cell">${ts}</td>
+                        <td>${pkt.src_ip || "?"}</td>
+                        <td>${pkt.dst_ip || "?"}</td>
+                        <td><span class="protocol-badge ${getProtocolBadgeClass(pkt.proto)}">${pkt.proto}</span></td>
+                        <td>${pkt.len || "?"} B</td>
+                        <td><span class="direction-badge ${directionInfo.class}"><span class="arrow-icon">${directionInfo.text.split(" ")[0]}</span> ${directionInfo.text.split(" ")[1]}</span></td>
+                        <td class="payload-preview">${escapeHTML(payload)}</td>
+                    </tr>
+                `;
+            }).join("") || `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <div>No packets match your filter</div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function openPacketDetails(index) {
+            const pkt = packets[index];
+            if (!pkt) return;
+
+            const directionInfo = getDirectionDisplay(pkt.direction);
+            const payload = pkt.payload_preview || "N/A";
+
+            modalBody.innerHTML = `
+                <div class="detail-row">
+                    <span class="detail-label">Timestamp</span>
+                    <span class="detail-value">${new Date(pkt.ts * 1000).toLocaleString()}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Source IP</span>
+                    <span class="detail-value highlight">${pkt.src_ip || "?"}</span>
+                </div>
+               
+                <div class="detail-row">
+                    <span class="detail-label">Destination IP</span>
+                    <span class="detail-value highlight">${pkt.dst_ip || "?"}</span>
+                </div>
+              
+                <div class="section-title">Protocol Information</div>
+                <div class="detail-row">
+                    <span class="detail-label">Protocol</span>
+                    <span class="detail-value">${pkt.proto}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Direction</span>
+                    <span class="detail-value">${directionInfo.text}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Packet Size</span>
+                    <span class="detail-value highlight">${pkt.len || "?"} bytes</span>
+                </div>
+                
+                <div class="section-title">Payload Data</div>
+                <div class="detail-row">
+                    <span class="detail-label">Preview</span>
+                    <span class="detail-value highlight" style="font-size: 12px; white-space: pre-wrap; word-break: break-all;">${escapeHTML(payload)}</span>
+                </div>
+            `;
+
+            detailModal.classList.add("active");
+        }
+
+        function escapeHTML(str) {
+            if (!str) return "";
+            const div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        toggleBtn.addEventListener("click", () => {
+            capturing = !capturing;
+            socket.emit("toggle_capture", { capture: capturing });
+            toggleBtn.textContent = capturing ? "⏸ Pause Capture" : "▶ Resume Capture";
+            statusEl.textContent = capturing ? "Capturing" : "Paused";
+            statusDot.classList.toggle("paused");
+        });
+
+        socket.on("capture_status", (data) => {
+            capturing = data.capturing;
+            toggleBtn.textContent = capturing ? "⏸ Pause Capture" : "▶ Resume Capture";
+            statusEl.textContent = capturing ? "Capturing" : "Paused";
+            statusDot.classList.toggle("paused", !capturing);
+        });
+
+        protocolFilter.addEventListener("change", renderPackets);
+        searchBox.addEventListener("input", renderPackets);
+
+        closeModalBtn.addEventListener("click", () => {
+            detailModal.classList.remove("active");
+        });
+
+        detailModal.addEventListener("click", (e) => {
+            if (e.target === detailModal) {
+                detailModal.classList.remove("active");
+            }
+        });
+
+        // Keyboard shortcut to close modal
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && detailModal.classList.contains("active")) {
+                detailModal.classList.remove("active");
+            }
+        });
+    </script>
+</body>
+</html>
